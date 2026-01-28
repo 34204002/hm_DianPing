@@ -7,13 +7,14 @@ spring:
     name: hmdp
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/hmdp?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://127.0.0.1:3306/hmdp?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: jgc20051012
   data:
     redis:
-      host: 192.168.150.101
+      host: 127.0.0.1
       port: 6379
+      database: 1
       timeout: 5000ms
       connect-timeout: 5000ms
       client:

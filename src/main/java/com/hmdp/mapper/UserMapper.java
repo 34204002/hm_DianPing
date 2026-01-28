@@ -3,6 +3,8 @@ package com.hmdp.mapper;
 import com.hmdp.entity.User;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import javax.swing.*;
+
 /**
  * <p>
  *  Mapper 接口
