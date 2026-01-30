@@ -1,7 +1,7 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
@@ -11,7 +11,6 @@ import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -60,17 +59,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (loginForm == null || loginForm.getPhone() == null) {
             return Result.fail("请正确填写登录信息");
         }
-        
+
         // 2. 验证手机号格式
         if (RegexUtils.isPhoneInvalid(loginForm.getPhone())) {
             return Result.fail("手机号格式错误");
         }
-        
+
         String phone = loginForm.getPhone();
-        
+
         // 3. 获取用户对象
         User user = query().eq("phone", phone).one();
-        
+
         // 4. 判断用户是否存在
         if (user == null) {
             log.info("用户不存在");
@@ -81,10 +80,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     // 验证码正确，创建新用户并登录成功
                     user = User.builder()
                             .phone(phone)
-                            .nickName(SystemConstants.USER_NICK_NAME_PREFIX+ RandomUtil.randomString(10))
+                            .nickName(SystemConstants.USER_NICK_NAME_PREFIX + RandomUtil.randomString(10))
                             .build();
                     save(user);
-                    return Result.ok();
+                    
+                    // 生成Session Token并保存用户信息到Redis
+                    String token = generateToken();
+                    log.info("生成新用户并创建token: {}, 用户ID: {}", token, user.getId());
+                    
+                    stringRedisTemplate.opsForValue().set(
+                        RedisConstants.LOGIN_USER_KEY + token, 
+                        JSONUtil.toJsonStr(user), 
+                        RedisConstants.LOGIN_USER_TTL, 
+                        TimeUnit.SECONDS
+                    );
+                    
+                    return Result.ok(token);
                 } else {
                     log.info("登陆失败,验证码错误");
                     return Result.fail("验证码错误");
@@ -111,9 +122,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             } else {
                 return Result.fail("请提供登录凭证（验证码或密码）");
             }
+
+            // 登录成功，生成Session Token并保存用户信息到Redis
+            String token = generateToken();
+            log.info("用户登录成功并创建token: {}, 用户ID: {}", token, user.getId());
             
-            return Result.ok();
+            stringRedisTemplate.opsForValue().set(
+                RedisConstants.LOGIN_USER_KEY + token, 
+                JSONUtil.toJsonStr(user), 
+                RedisConstants.LOGIN_USER_TTL, 
+                TimeUnit.SECONDS
+            );
+            
+            return Result.ok(token);
         }
+    }
+
+    @Override
+    public Result logout(String token) {
+        stringRedisTemplate.delete(RedisConstants.LOGIN_USER_KEY + token);
+        return Result.ok();
+    }
+
+    /**
+     * 生成安全的Session Token
+     * @return 随机生成的token
+     */
+    private String generateToken() {
+        // 使用UUID生成唯一的Session Token，更安全
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
+        log.info("生成Session Token: {}", token);
+        return token;
     }
 
     /**

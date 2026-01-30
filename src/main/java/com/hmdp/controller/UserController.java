@@ -6,10 +6,12 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 /**
@@ -59,15 +61,22 @@ public class UserController {
      * @return 无
      */
     @PostMapping("/logout")
-    public Result logout(){
-        // TODO 实现登出功能
-        return Result.fail("功能未完成");
+    public Result logout(HttpServletRequest request){
+        log.info("登出");
+        // 从请求头获取token
+        String token = request.getHeader("authorization");
+        if (token != null && !token.isEmpty()) {
+            // 调用服务层登出方法，清除Redis中的用户信息
+            userService.logout(token);
+        }
+        return Result.ok("登出成功");
     }
 
     @GetMapping("/me")
     public Result me(){
-        // TODO 获取当前登录的用户并返回
-        return Result.fail("功能未完成");
+        log.info("获取当前登录用户:{}", UserHolder.getUser());
+        return Result.ok(userInfoService.getById(UserHolder.getUser().getId()));
+
     }
 
     @GetMapping("/info/{id}")
