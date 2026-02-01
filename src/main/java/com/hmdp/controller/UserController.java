@@ -39,9 +39,13 @@ public class UserController {
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone) {
         log.info("发送验证码：{}", phone);
-        Result result=userService.sendCode(phone);
-        log.info("发送验证码成功");
-        return result;
+        try {
+            userService.sendCode(phone);
+            log.info("发送验证码成功");
+            return Result.ok();
+        } catch (RuntimeException e) {
+            return Result.fail(e.getMessage());
+        }
     }
 
     /**
@@ -51,9 +55,13 @@ public class UserController {
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm){
         log.info("登录：{}", loginForm);
-        Result result=userService.login(loginForm);
-        log.info("登录成功");
-        return result;
+        try {
+            String token = userService.login(loginForm);
+            log.info("登录成功");
+            return Result.ok(token);
+        } catch (RuntimeException e) {
+            return Result.fail(e.getMessage());
+        }
     }
 
     /**
@@ -75,7 +83,7 @@ public class UserController {
     @GetMapping("/me")
     public Result me(){
         log.info("获取当前登录用户:{}", UserHolder.getUser());
-        return Result.ok(userInfoService.getById(UserHolder.getUser().getId()));
+        return Result.ok(userService.getById(UserHolder.getUser().getId()));
 
     }
 

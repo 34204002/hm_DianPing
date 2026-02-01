@@ -15,10 +15,9 @@ import com.hmdp.entity.User;
  */
 public interface IUserService extends IService<User> {
 
-    Result sendCode(String phone);
+    void sendCode(String phone);
 
-    Result login(LoginFormDTO loginForm);
+    String login(LoginFormDTO loginForm);
 
-
-    Result logout(String token);
+    void logout(String token);
 }

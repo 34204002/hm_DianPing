@@ -34,11 +34,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private StringRedisTemplate stringRedisTemplate;
 
     @Override
-    public Result sendCode(String phone) {
+    public void sendCode(String phone) {
         //1.验证手机号
-        //2.如果不符合，返回错误
+        //2.如果不符合，抛出异常
         if (RegexUtils.isPhoneInvalid(phone)) {
-            return Result.fail("手机号格式错误");
+            throw new RuntimeException("手机号格式错误");
         }
         //3.符合，生成验证码
         String code = RandomUtil.randomNumbers(6);
@@ -48,21 +48,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         //5.发送验证码
         log.info("发送验证码成功，验证码：{}", code);
-
-        //6.返回结果
-        return Result.ok();
     }
 
     @Override
-    public Result login(LoginFormDTO loginForm) {
+    public String login(LoginFormDTO loginForm) {
         // 1. 校验参数
         if (loginForm == null || loginForm.getPhone() == null) {
-            return Result.fail("请正确填写登录信息");
+            throw new RuntimeException("请正确填写登录信息");
         }
 
         // 2. 验证手机号格式
         if (RegexUtils.isPhoneInvalid(loginForm.getPhone())) {
-            return Result.fail("手机号格式错误");
+            throw new RuntimeException("手机号格式错误");
         }
 
         String phone = loginForm.getPhone();
@@ -95,13 +92,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                         TimeUnit.SECONDS
                     );
                     
-                    return Result.ok(token);
+                    return token;
                 } else {
                     log.info("登陆失败,验证码错误");
-                    return Result.fail("验证码错误");
+                    throw new RuntimeException("验证码错误");
                 }
             } else {
-                return Result.fail("用户不存在，请使用验证码注册");
+                throw new RuntimeException("用户不存在，请使用验证码注册");
             }
         } else {
             log.info("用户已存在:{}", user);
@@ -111,16 +108,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 boolean isValidCode = validateVerificationCode(phone, loginForm.getCode());
                 if (!isValidCode) {
                     log.info("登陆失败,验证码错误");
-                    return Result.fail("验证码错误");
+                    throw new RuntimeException("验证码错误");
                 }
             } else if (loginForm.getPassword() != null) {
                 // 密码登录
                 if (user.getPassword() == null || !user.getPassword().equals(loginForm.getPassword())) {
                     log.info("登陆失败,密码错误");
-                    return Result.fail("密码错误");
+                    throw new RuntimeException("密码错误");
                 }
             } else {
-                return Result.fail("请提供登录凭证（验证码或密码）");
+                throw new RuntimeException("请提供登录凭证（验证码或密码）");
             }
 
             // 登录成功，生成Session Token并保存用户信息到Redis
@@ -134,14 +131,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 TimeUnit.SECONDS
             );
             
-            return Result.ok(token);
+            return token;
         }
     }
 
     @Override
-    public Result logout(String token) {
+    public void logout(String token) {
         stringRedisTemplate.delete(RedisConstants.LOGIN_USER_KEY + token);
-        return Result.ok();
     }
 
     /**
