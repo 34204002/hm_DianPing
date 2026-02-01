@@ -10,6 +10,12 @@ public class RedisConstants {
 
     public static final Long CACHE_SHOP_TTL = 30L;
     public static final String CACHE_SHOP_KEY = "cache:shop:";
+    
+    public static final String CACHE_USER_KEY = "cache:user:";
+    public static final Long CACHE_USER_TTL = 30L;
+    
+    public static final String CACHE_USER_INFO_KEY = "cache:userinfo:";
+    public static final Long CACHE_USER_INFO_TTL = 30L;
 
     public static final String CACHE_SHOP_TYPE_KEY = "cache:shop:type:";
     public static final Long CACHE_SHOP_TYPE_TTL = 30L;

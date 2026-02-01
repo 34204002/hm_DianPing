@@ -20,4 +20,6 @@ public interface IUserService extends IService<User> {
     String login(LoginFormDTO loginForm);
 
     void logout(String token);
+
+    Object queryById(Long id);
 }

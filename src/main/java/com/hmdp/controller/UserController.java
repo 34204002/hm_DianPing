@@ -83,14 +83,14 @@ public class UserController {
     @GetMapping("/me")
     public Result me(){
         log.info("获取当前登录用户:{}", UserHolder.getUser());
-        return Result.ok(userService.getById(UserHolder.getUser().getId()));
+        return Result.ok(userService.queryById(UserHolder.getUser().getId()));
 
     }
 
     @GetMapping("/info/{id}")
     public Result info(@PathVariable("id") Long userId){
         // 查询详情
-        UserInfo info = userInfoService.getById(userId);
+        UserInfo info = userInfoService.queryUserInfoById(userId);
         if (info == null) {
             // 没有详情，应该是第一次查看详情
             return Result.ok();
