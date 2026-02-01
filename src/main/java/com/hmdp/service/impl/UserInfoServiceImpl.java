@@ -27,6 +27,7 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
     @Autowired
     private BloomFilterManager bloomFilterManager;
 
+
     /**
      * 根据ID查询用户详情，使用布隆过滤器优化
      */

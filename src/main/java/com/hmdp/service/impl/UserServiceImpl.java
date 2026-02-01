@@ -6,7 +6,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.User;
+import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.UserMapper;
+import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.BloomFilterManager;
 import com.hmdp.utils.RedisConstants;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -36,6 +39,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private BloomFilterManager bloomFilterManager;
+    @Autowired
+    private IUserInfoService userInfoService;
 
     /**
      * 根据ID查询用户，使用布隆过滤器优化
@@ -98,6 +103,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         log.info("发送验证码成功，验证码：{}", code);
     }
 
+
     @Override
     public String login(LoginFormDTO loginForm) {
         // 1. 校验参数
@@ -128,18 +134,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                             .nickName(SystemConstants.USER_NICK_NAME_PREFIX + RandomUtil.randomString(10))
                             .build();
                     save(user);
-                    
+
+                    // 创建用户信息
+                    createUserInfoIfNotExists(user.getId());
+
                     // 生成Session Token并保存用户信息到Redis
                     String token = generateToken();
                     log.info("生成新用户并创建token: {}, 用户ID: {}", token, user.getId());
-                    
+
                     stringRedisTemplate.opsForValue().set(
-                        RedisConstants.LOGIN_USER_KEY + token, 
-                        JSONUtil.toJsonStr(user), 
-                        RedisConstants.LOGIN_USER_TTL, 
-                        TimeUnit.SECONDS
+                            RedisConstants.LOGIN_USER_KEY + token,
+                            JSONUtil.toJsonStr(user),
+                            RedisConstants.LOGIN_USER_TTL,
+                            TimeUnit.SECONDS
                     );
-                    
+
                     return token;
                 } else {
                     log.info("登陆失败,验证码错误");
@@ -168,20 +177,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 throw new RuntimeException("请提供登录凭证（验证码或密码）");
             }
 
-            // 登录成功，生成Session Token并保存用户信息到Redis
+            // 登录成功，检查并创建用户信息（如果不存在）
+            createUserInfoIfNotExists(user.getId());
+
+            // 生成Session Token并保存用户信息到Redis
             String token = generateToken();
             log.info("用户登录成功并创建token: {}, 用户ID: {}", token, user.getId());
-            
+
             stringRedisTemplate.opsForValue().set(
-                RedisConstants.LOGIN_USER_KEY + token, 
-                JSONUtil.toJsonStr(user), 
-                RedisConstants.LOGIN_USER_TTL, 
-                TimeUnit.SECONDS
+                    RedisConstants.LOGIN_USER_KEY + token,
+                    JSONUtil.toJsonStr(user),
+                    RedisConstants.LOGIN_USER_TTL,
+                    TimeUnit.SECONDS
             );
-            
+
             return token;
         }
     }
+
 
     @Override
     public void logout(String token) {
@@ -211,5 +224,38 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 验证码使用后立即删除，防止重复使用（防重放攻击）
         stringRedisTemplate.delete(RedisConstants.LOGIN_CODE_KEY + phone);
         return true;
+    }
+    /**
+     * 如果用户信息不存在，则创建一个新的用户信息
+     */
+    private void createUserInfoIfNotExists(Long userId) {
+        // 使用MyBatis-Plus的query方法检查用户信息是否存在
+        UserInfo existingUserInfo = userInfoService.query()
+            .eq("user_id", userId)
+            .one();
+        
+        if (existingUserInfo == null) {
+            // 用户信息不存在，创建一个新的
+            UserInfo newUserInfo = new UserInfo();
+            newUserInfo.setUserId(userId); // 设置关联的用户ID
+            // 设置合理的默认值
+            newUserInfo.setCity(""); // 默认城市为空
+            newUserInfo.setIntroduce(""); // 默认介绍为空
+            newUserInfo.setFans(0); // 默认粉丝数为0
+            newUserInfo.setFollowee(0); // 默认关注数为0
+            newUserInfo.setGender(false); // 默认性别为男(false表示男，true表示女)
+            newUserInfo.setBirthday(null); // 默认生日为空
+            newUserInfo.setCredits(0); // 默认积分为0
+            newUserInfo.setLevel(false); // 默认会员等级为非会员
+            newUserInfo.setCreateTime(LocalDateTime.now()); // 设置创建时间
+            newUserInfo.setUpdateTime(LocalDateTime.now()); // 设置更新时间
+
+            // 保存到数据库
+            userInfoService.save(newUserInfo);
+
+            log.info("为用户 {} 创建了默认的用户信息", userId);
+        } else {
+            log.info("用户 {} 的信息已存在，无需重复创建", userId);
+        }
     }
 }
