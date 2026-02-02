@@ -17,7 +17,8 @@ import java.util.List;
 
 /**
  * <p>
- * 前端控制器
+ * 博客前端控制器
+ * 提供探店博客相关的REST API接口，包括发布、点赞、查询等功能
  * </p>
  *
  * @author 虎哥
@@ -32,6 +33,11 @@ public class BlogController {
     @Resource
     private IUserService userService;
 
+    /**
+     * 保存探店博客
+     * @param blog 博客实体，包含标题、内容、封面图等信息
+     * @return 保存成功的博客ID
+     */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
         // 获取登录用户
@@ -43,6 +49,11 @@ public class BlogController {
         return Result.ok(blog.getId());
     }
 
+    /**
+     * 给指定博客点赞
+     * @param id 博客ID
+     * @return 操作结果
+     */
     @PutMapping("/like/{id}")
     public Result likeBlog(@PathVariable("id") Long id) {
         // 修改点赞数量
@@ -51,6 +62,11 @@ public class BlogController {
         return Result.ok();
     }
 
+    /**
+     * 查询当前用户发布的博客
+     * @param current 当前页码，默认为1
+     * @return 分页的博客列表
+     */
     @GetMapping("/of/me")
     public Result queryMyBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         // 获取登录用户
@@ -63,6 +79,11 @@ public class BlogController {
         return Result.ok(records);
     }
 
+    /**
+     * 查询热门博客（按点赞数排序）
+     * @param current 当前页码，默认为1
+     * @return 分页的热门博客列表
+     */
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
         // 根据用户查询

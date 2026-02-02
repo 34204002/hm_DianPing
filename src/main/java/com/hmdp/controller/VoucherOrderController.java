@@ -9,7 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * <p>
- *  前端控制器
+ * 优惠券订单前端控制器
+ * 提供优惠券购买、秒杀等相关REST API接口
  * </p>
  *
  * @author 虎哥
@@ -18,6 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/voucher-order")
 public class VoucherOrderController {
+    /**
+     * 秒杀优惠券
+     * @param voucherId 优惠券ID
+     * @return 秒杀结果
+     */
     @PostMapping("seckill/{id}")
     public Result seckillVoucher(@PathVariable("id") Long voucherId) {
         return Result.fail("功能未完成");

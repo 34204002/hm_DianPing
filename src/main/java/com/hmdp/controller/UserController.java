@@ -35,6 +35,9 @@ public class UserController {
 
     /**
      * 发送手机验证码
+     *
+     * @param phone the phone
+     * @return the result
      */
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone) {
@@ -50,7 +53,9 @@ public class UserController {
 
     /**
      * 登录功能
+     *
      * @param loginForm 登录参数，包含手机号、验证码；或者手机号、密码
+     * @return the result
      */
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm){
@@ -65,8 +70,10 @@ public class UserController {
     }
 
     /**
-     * 登出功能
-     * @return 无
+     * 用户登出
+     *
+     * @param request HTTP请求对象
+     * @return 操作结果 result
      */
     @PostMapping("/logout")
     public Result logout(HttpServletRequest request){
@@ -80,6 +87,11 @@ public class UserController {
         return Result.ok("登出成功");
     }
 
+    /**
+     * 用户个人详情
+     *
+     * @return the result
+     */
     @GetMapping("/me")
     public Result me(){
         log.info("获取当前登录用户:{}", UserHolder.getUser());
@@ -87,6 +99,12 @@ public class UserController {
 
     }
 
+    /**
+     * 根据用户ID获取用户信息
+     *
+     * @param userId 用户ID
+     * @return 用户详细信息 result
+     */
     @GetMapping("/info/{id}")
     public Result info(@PathVariable("id") Long userId){
         // 查询详情

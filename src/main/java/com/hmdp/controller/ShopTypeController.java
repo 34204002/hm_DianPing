@@ -16,7 +16,8 @@ import java.util.List;
 
 /**
  * <p>
- * 前端控制器
+ * 商铺类型前端控制器
+ * 提供商铺类型相关的REST API接口
  * </p>
  *
  * @author 虎哥
@@ -29,6 +30,10 @@ public class ShopTypeController {
     @Resource
     private IShopTypeService typeService;
 
+    /**
+     * 查询所有商铺类型列表
+     * @return 商铺类型列表，按排序字段升序排列
+     */
     @GetMapping("list")
     public Result queryTypeList() {
         log.info("查询所有店铺分类");

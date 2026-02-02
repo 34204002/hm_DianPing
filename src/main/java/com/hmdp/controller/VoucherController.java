@@ -10,7 +10,8 @@ import jakarta.annotation.Resource;
 
 /**
  * <p>
- *  前端控制器
+ * 优惠券前端控制器
+ * 提供优惠券相关的REST API接口，包括新增普通券、秒杀券及查询等功能
  * </p>
  *
  * @author 虎哥

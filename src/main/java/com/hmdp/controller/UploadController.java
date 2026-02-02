@@ -12,6 +12,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * 文件上传控制器
+ * 提供图片等文件上传相关的REST API接口
+ *
+ * @author 虎哥
+ * @since 2021-12-22
+ */
 @Slf4j
 @RestController
 @RequestMapping("upload")

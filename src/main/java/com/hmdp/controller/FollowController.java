@@ -7,7 +7,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * <p>
- *  前端控制器
+ * 关注功能前端控制器
+ * 提供用户关注相关的REST API接口
  * </p>
  *
  * @author 虎哥

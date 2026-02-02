@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.BooleanUtil;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.UserInfoMapper;
 import com.hmdp.service.IUserInfoService;
@@ -42,33 +43,54 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
             return null;
         }
 
-        // 2. 从redis中查询用户详情缓存
+        // 2.从redis中查询用户详情缓存
         String userInfoJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_USER_INFO_KEY + idStr);
-        // 3. 判断缓存是否存在
+        // 3.判断是否存在
+        // 4.存在直接返回
         if (userInfoJson != null) {
-            // 3.1 存在且不是空值，直接返回
-            if (!"".equals(userInfoJson)) {
-                return cn.hutool.json.JSONUtil.toBean(userInfoJson, UserInfo.class);
+            return cn.hutool.json.JSONUtil.toBean(userInfoJson, UserInfo.class);
+        }
+        // 5.缓存未命中，查询数据库
+        String key = RedisConstants.LOCK_USER_INFO_KEY + idStr;
+        UserInfo userInfo = null;
+        try {
+            //获取互斥锁
+            if (!tryLock(key)) {
+                String userInfoJsonStr = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_USER_INFO_KEY + idStr);
+                if(userInfoJsonStr != null)
+                    return cn.hutool.json.JSONUtil.toBean(userInfoJsonStr, UserInfo.class);
+                Thread.sleep(50);
+                return queryUserInfoById(id);
             }
-            // 3.2 存在但为空值，表示数据库中不存在该用户详情
-            return null;
+
+            userInfo = super.getById(id);
+            // 6.数据库不存在，插入空值到缓存并返回
+            if (userInfo == null) {
+                // 将空值写入缓存，防止缓存穿透
+                stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
+                return null;
+            }
+
+            // 7.存在，写入redis
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, cn.hutool.json.JSONUtil.toJsonStr(userInfo), RedisConstants.getCacheUserInfoTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }finally {
+            unlock(key);
         }
 
-        // 4. 缓存未命中，查询数据库
-        UserInfo userInfo = getById(id);
-        
-        // 5. 数据库不存在，插入空值到缓存并返回
-        if (userInfo == null) {
-            // 将空值写入缓存，防止缓存穿透
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
-            return null;
-        }
-
-        // 6. 存在，写入redis
-        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, cn.hutool.json.JSONUtil.toJsonStr(userInfo), RedisConstants.getCacheUserInfoTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
-        // 7. 将ID加入布隆过滤器
+        // 8.将ID加入布隆过滤器
         bloomFilter.add(id);
-        
+        // 9.返回
         return userInfo;
+    }
+    
+    public boolean tryLock(String key){
+        Boolean flag =stringRedisTemplate.opsForValue().setIfAbsent(key, "1");
+        return BooleanUtil.isTrue(flag);
+    }
+    public void unlock(String key){
+        stringRedisTemplate.delete(key);
     }
 }

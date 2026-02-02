@@ -14,7 +14,8 @@ import jakarta.annotation.Resource;
 
 /**
  * <p>
- * 前端控制器
+ * 商铺前端控制器
+ * 提供商铺相关的REST API接口，包括新增、查询、更新等功能
  * </p>
  *
  * @author 虎哥
@@ -30,7 +31,7 @@ public class ShopController {
 
     /**
      * 根据id查询商铺信息
-     * @param id 商铺id
+     * @param id 商铺ID
      * @return 商铺详情数据
      */
     @GetMapping("/{id}")
@@ -40,8 +41,8 @@ public class ShopController {
 
     /**
      * 新增商铺信息
-     * @param shop 商铺数据
-     * @return 商铺id
+     * @param shop 商铺数据实体
+     * @return 包含商铺ID的结果
      */
     @PostMapping
     public Result saveShop(@RequestBody Shop shop) {
@@ -53,8 +54,8 @@ public class ShopController {
 
     /**
      * 更新商铺信息
-     * @param shop 商铺数据
-     * @return 无
+     * @param shop 商铺数据实体
+     * @return 操作结果
      */
     @PutMapping
     public Result updateShop(@RequestBody Shop shop) {
@@ -67,9 +68,9 @@ public class ShopController {
 
     /**
      * 根据商铺类型分页查询商铺信息
-     * @param typeId 商铺类型
-     * @param current 页码
-     * @return 商铺列表
+     * @param typeId 商铺类型ID
+     * @param current 当前页码，默认为1
+     * @return 分页的商铺列表
      */
     @GetMapping("/of/type")
     public Result queryShopByType(
@@ -86,9 +87,9 @@ public class ShopController {
 
     /**
      * 根据商铺名称关键字分页查询商铺信息
-     * @param name 商铺名称关键字
-     * @param current 页码
-     * @return 商铺列表
+     * @param name 商铺名称关键字，可选参数
+     * @param current 当前页码，默认为1
+     * @return 分页的商铺列表
      */
     @GetMapping("/of/name")
     public Result queryShopByName(

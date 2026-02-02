@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.json.JSONUtil;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
@@ -51,18 +52,36 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         if (shopJson != null) {
             return JSONUtil.toBean(shopJson, Shop.class);
         }
-
         // 5.缓存未命中，查询数据库
-        Shop shop = super.getById(id);
-        // 6.数据库不存在，插入空值到缓存并返回
-        if (shop == null) {
-            // 将空值写入缓存，防止缓存穿透
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
-            return null;
+        String key = RedisConstants.LOCK_SHOP_KEY + idStr;
+        Shop shop = null;
+        try {
+            //获取互斥锁
+            if (!tryLock(key)) {
+                String shopJsonStr = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_SHOP_KEY + idStr);
+                if(shopJsonStr != null)
+                    return JSONUtil.toBean(shopJsonStr, Shop.class);
+                Thread.sleep(50);
+                return queryById(id);
+            }
+
+            shop = super.getById(id);
+            // 6.数据库不存在，插入空值到缓存并返回
+            if (shop == null) {
+                // 将空值写入缓存，防止缓存穿透
+                stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
+                return null;
+            }
+
+            // 7.存在，写入redis
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, JSONUtil.toJsonStr(shop), RedisConstants.getCacheShopTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }finally {
+            unlock(key);
         }
 
-        // 7.存在，写入redis
-        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, JSONUtil.toJsonStr(shop), RedisConstants.getCacheShopTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
         // 8.将ID加入布隆过滤器
         bloomFilter.add(id);
         // 9.返回
@@ -76,5 +95,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         super.updateById(shop);
         //删除缓存
         stringRedisTemplate.delete(RedisConstants.CACHE_SHOP_KEY + shop.getId());
+    }
+    public boolean tryLock(String key){
+        Boolean flag =stringRedisTemplate.opsForValue().setIfAbsent(key, "1");
+        return BooleanUtil.isTrue(flag);
+    }
+    public void unlock(String key){
+        stringRedisTemplate.delete(key);
     }
 }
