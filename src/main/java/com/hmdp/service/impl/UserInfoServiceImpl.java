@@ -60,12 +60,12 @@ public class UserInfoServiceImpl extends ServiceImpl<UserInfoMapper, UserInfo> i
         // 5. 数据库不存在，插入空值到缓存并返回
         if (userInfo == null) {
             // 将空值写入缓存，防止缓存穿透
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, "", RedisConstants.CACHE_NULL_TTL, java.util.concurrent.TimeUnit.MINUTES);
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
             return null;
         }
 
         // 6. 存在，写入redis
-        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, cn.hutool.json.JSONUtil.toJsonStr(userInfo), RedisConstants.CACHE_USER_INFO_TTL, java.util.concurrent.TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_INFO_KEY + idStr, cn.hutool.json.JSONUtil.toJsonStr(userInfo), RedisConstants.getCacheUserInfoTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
         // 7. 将ID加入布隆过滤器
         bloomFilter.add(id);
         

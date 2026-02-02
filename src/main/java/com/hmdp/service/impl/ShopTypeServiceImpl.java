@@ -49,8 +49,8 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
                 .toList();
         
         stringRedisTemplate.opsForList().leftPushAll(RedisConstants.CACHE_SHOP_TYPE_KEY,jsonList);
-        // 设置过期时间为2小时
-        stringRedisTemplate.expire(RedisConstants.CACHE_SHOP_TYPE_KEY, RedisConstants.CACHE_SHOP_TYPE_TTL, java.util.concurrent.TimeUnit.MINUTES);
+        // 设置过期时间为30分钟+随机时间，防止缓存雪崩
+        stringRedisTemplate.expire(RedisConstants.CACHE_SHOP_TYPE_KEY, RedisConstants.getCacheShopTypeTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
 
         return shopTypeList;
     }

@@ -145,7 +145,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     stringRedisTemplate.opsForValue().set(
                             RedisConstants.LOGIN_USER_KEY + token,
                             JSONUtil.toJsonStr(user),
-                            RedisConstants.LOGIN_USER_TTL,
+                            RedisConstants.getLoginUserTtlWithRandomness(),
                             TimeUnit.SECONDS
                     );
 
@@ -187,7 +187,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             stringRedisTemplate.opsForValue().set(
                     RedisConstants.LOGIN_USER_KEY + token,
                     JSONUtil.toJsonStr(user),
-                    RedisConstants.LOGIN_USER_TTL,
+                    RedisConstants.getLoginUserTtlWithRandomness(),
                     TimeUnit.SECONDS
             );
 

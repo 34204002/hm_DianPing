@@ -57,12 +57,12 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         // 6.数据库不存在，插入空值到缓存并返回
         if (shop == null) {
             // 将空值写入缓存，防止缓存穿透
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, "", RedisConstants.CACHE_NULL_TTL, java.util.concurrent.TimeUnit.MINUTES);
+            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
             return null;
         }
 
         // 7.存在，写入redis
-        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, JSONUtil.toJsonStr(shop), RedisConstants.CACHE_SHOP_TTL, java.util.concurrent.TimeUnit.MINUTES);
+        stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_SHOP_KEY + idStr, JSONUtil.toJsonStr(shop), RedisConstants.getCacheShopTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
         // 8.将ID加入布隆过滤器
         bloomFilter.add(id);
         // 9.返回
