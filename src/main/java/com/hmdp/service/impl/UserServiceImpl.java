@@ -1,6 +1,5 @@
 package com.hmdp.service.impl;
 
-import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -12,6 +11,8 @@ import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.BloomFilterManager;
+import com.hmdp.utils.CacheClient;
+import com.hmdp.utils.ILock;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
@@ -37,75 +38,28 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private CacheClient cacheClient;
     @Autowired
     private BloomFilterManager bloomFilterManager;
     @Autowired
     private IUserInfoService userInfoService;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 根据ID查询用户，使用布隆过滤器优化
      */
     public User queryById(Long id) {
-        // 确保ID被正确转换为字符串用于Redis键
-        String idStr = String.valueOf(id);
-        
-        // 1. 先通过布隆过滤器判断ID是否存在（快速排除不存在的ID）
         RBloomFilter<Long> bloomFilter = bloomFilterManager.getUserBloomFilter();
-        if (!bloomFilter.contains(id)) {
-            // 如果布隆过滤器认为不存在，直接返回null，避免访问缓存和数据库
-            return null;
-        }
 
-        // 2.从redis中查询用户缓存
-        String userJson = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_USER_KEY + idStr);
-        // 3.判断是否存在
-        // 4.存在直接返回
-        if (userJson != null) {
-            return JSONUtil.toBean(userJson, User.class);
-        }
-        // 5.缓存未命中，查询数据库
-        String key = RedisConstants.LOCK_USER_KEY + idStr;
-        User user = null;
-        try {
-            //获取互斥锁
-            if (!tryLock(key)) {
-                String userJsonStr = stringRedisTemplate.opsForValue().get(RedisConstants.CACHE_USER_KEY + idStr);
-                if(userJsonStr != null)
-                    return JSONUtil.toBean(userJsonStr, User.class);
-                Thread.sleep(50);
-                return queryById(id);
-            }
-
-            user = super.getById(id);
-            // 6.数据库不存在，插入空值到缓存并返回
-            if (user == null) {
-                // 将空值写入缓存，防止缓存穿透
-                stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_KEY + idStr, "", RedisConstants.getCacheNullTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
-                return null;
-            }
-
-            // 7.存在，写入redis
-            stringRedisTemplate.opsForValue().set(RedisConstants.CACHE_USER_KEY + idStr, JSONUtil.toJsonStr(user), RedisConstants.getCacheUserTtlWithRandomness(), java.util.concurrent.TimeUnit.MINUTES);
-
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }finally {
-            unlock(key);
-        }
-
-        // 8.将ID加入布隆过滤器
-        bloomFilter.add(id);
-        // 9.返回
-        return user;
-    }
-    
-    public boolean tryLock(String key){
-        Boolean flag =stringRedisTemplate.opsForValue().setIfAbsent(key, "1");
-        return BooleanUtil.isTrue(flag);
-    }
-    public void unlock(String key){
-        stringRedisTemplate.delete(key);
+        return cacheClient.queryWithBloomFilterAndProtection(
+                RedisConstants.CACHE_USER_KEY,
+                RedisConstants.LOCK_USER_KEY,
+                id,
+                User.class,
+                super::getById,
+                bloomFilter
+        );
     }
 
     @Override
@@ -124,7 +78,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         //5.发送验证码
         log.info("发送验证码成功，验证码：{}", code);
     }
-
 
     @Override
     public String login(LoginFormDTO loginForm) {
@@ -217,7 +170,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
     }
 
-
     @Override
     public void logout(String token) {
         stringRedisTemplate.delete(RedisConstants.LOGIN_USER_KEY + token);
@@ -247,6 +199,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.delete(RedisConstants.LOGIN_CODE_KEY + phone);
         return true;
     }
+
     /**
      * 如果用户信息不存在，则创建一个新的用户信息
      */
@@ -255,7 +208,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         UserInfo existingUserInfo = userInfoService.query()
             .eq("user_id", userId)
             .one();
-        
+
         if (existingUserInfo == null) {
             // 用户信息不存在，创建一个新的
             UserInfo newUserInfo = new UserInfo();
