@@ -33,6 +33,6 @@ public class VoucherOrderController {
         Long orderId =voucherOrderService.seckillVoucher(voucherId);
         if (orderId != null)
             return Result.ok(orderId);
-        return Result.fail("库存不足");
+        return Result.fail("购买异常");
     }
 }

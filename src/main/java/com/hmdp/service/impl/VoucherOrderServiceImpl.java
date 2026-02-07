@@ -6,6 +6,8 @@ import com.hmdp.mapper.VoucherOrderMapper;
 import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.ILock;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
 import org.springframework.aop.framework.AopContext;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -29,6 +32,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ISeckillVoucherService seckillVoucherService;
     @Autowired
     private RedisIdWorker redisIdWorker;
+    @Autowired
+    private ILock ilock;
 
     @Override
     public Long seckillVoucher(Long voucherId) {
@@ -47,14 +52,25 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return null;
         }
         //7.返回订单id
-        synchronized (UserHolder.getUser().getId().toString().intern()){
-            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            return proxy.getOrderId(voucherId);
+        Long orderId;
+        if(!ilock.tryLock(RedisConstants.LOCK_ORDER_USER_KEY+UserHolder.getUser().getId(), RedisConstants.LOCK_ORDER_USER_TTL, TimeUnit.SECONDS)) {
+            return null;
         }
+        try{
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            orderId = proxy.createVoucherOrder(voucherId);
+        }catch (Exception e) {
+            return null;
+        }
+        finally {
+            ilock.unlock(RedisConstants.LOCK_ORDER_USER_KEY+UserHolder.getUser().getId());
+        }
+        return orderId;
+
     }
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long getOrderId(Long voucherId) {
+    public Long createVoucherOrder(Long voucherId) {
         //一人一单
         Long userId = UserHolder.getUser().getId();
         if (query().eq("user_id", userId).eq("voucher_id", voucherId).count() > 0) {

@@ -6,7 +6,7 @@ public class RedisConstants {
     public static final String LOGIN_CODE_KEY = "login:code:";
     public static final Long LOGIN_CODE_TTL = 2L;
     public static final String LOGIN_USER_KEY = "login:token:";
-    public static final Long LOGIN_USER_TTL = 10800L;
+    public static final Long LOGIN_USER_TTL = 14400L;
 
     public static final Long CACHE_NULL_TTL = 2L;
 
@@ -24,6 +24,8 @@ public class RedisConstants {
 
     public static final String LOCK_SHOP_KEY = "lock:shop:";
     public static final Long LOCK_SHOP_TTL = 10L;
+    public static final String LOCK_ORDER_USER_KEY = "lock:order:";
+    public static final Long LOCK_ORDER_USER_TTL = 10L;
     
     public static final String LOCK_USER_KEY = "lock:user:";
     public static final String LOCK_USER_INFO_KEY = "lock:userinfo:";

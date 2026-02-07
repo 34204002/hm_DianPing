@@ -1,10 +1,15 @@
 package com.hmdp.utils;
 
+
 import cn.hutool.core.util.BooleanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -16,6 +21,15 @@ import java.util.concurrent.TimeUnit;
 public class RedisLockUtils implements ILock {
 
     private final StringRedisTemplate stringRedisTemplate;
+    private static final String UUIDStr = UUID.randomUUID().toString();
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;
+
+    static {
+        UNLOCK_SCRIPT = new DefaultRedisScript<>();
+        UNLOCK_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));
+        UNLOCK_SCRIPT.setResultType(Long.class);
+    }
+
 
     public RedisLockUtils(StringRedisTemplate stringRedisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
@@ -31,7 +45,12 @@ public class RedisLockUtils implements ILock {
      */
     @Override
     public boolean tryLock(String key, long timeout, TimeUnit unit) {
-        Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", timeout, unit);
+        Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(
+                key,
+                UUIDStr+"-"+Thread.currentThread().getName(),
+                timeout,
+                unit
+        );
         return BooleanUtil.isTrue(flag);
     }
 
@@ -53,6 +72,15 @@ public class RedisLockUtils implements ILock {
      */
     @Override
     public void unlock(String key) {
-        stringRedisTemplate.delete(key);
+        stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(key), UUIDStr+"-"+Thread.currentThread().getName());
+
     }
+//    @Override
+//    public void unlock(String key) {
+//        String value = stringRedisTemplate.opsForValue().get(key);
+//        if(value!=null&&value.equals(UUIDStr+"-"+Thread.currentThread().getName())) {
+//            stringRedisTemplate.delete(key);
+//        }
+//
+//    }
 }

@@ -94,7 +94,7 @@ public class CacheClient {
         // 6.缓存重建
         // 6.1.获取互斥锁
         String lockKey = LOCK_SHOP_KEY + id;
-        boolean isLock = ilock.tryLock(lockKey);
+        boolean isLock = ilock.tryLock(lockKey, RedisConstants.LOCK_SHOP_TTL, TimeUnit.SECONDS);
         // 6.2.判断是否获取锁成功
         if (isLock){
             // 6.3.成功，开启独立线程，实现缓存重建
@@ -137,7 +137,7 @@ public class CacheClient {
         String lockKey = LOCK_SHOP_KEY + id;
         R r = null;
         try {
-            boolean isLock = ilock.tryLock(lockKey);
+            boolean isLock = ilock.tryLock(lockKey, RedisConstants.LOCK_SHOP_TTL, TimeUnit.SECONDS);
             // 4.2.判断是否获取成功
             if (!isLock) {
                 // 4.3.获取锁失败，休眠并重试
@@ -193,7 +193,7 @@ public class CacheClient {
         R r = null;
         try {
             //获取互斥锁
-            if (!ilock.tryLock(lockKey)) {
+            if (!ilock.tryLock(lockKey, RedisConstants.LOCK_SHOP_TTL, TimeUnit.SECONDS)) {
                 String jsonStr = stringRedisTemplate.opsForValue().get(key);
                 if(jsonStr != null) {
                     return JSONUtil.toBean(jsonStr, type);

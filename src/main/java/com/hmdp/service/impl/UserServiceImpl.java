@@ -121,7 +121,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                             RedisConstants.LOGIN_USER_KEY + token,
                             JSONUtil.toJsonStr(user),
                             RedisConstants.getLoginUserTtlWithRandomness(),
-                            TimeUnit.SECONDS
+                            TimeUnit.MINUTES
                     );
 
                     return token;
@@ -163,7 +163,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     RedisConstants.LOGIN_USER_KEY + token,
                     JSONUtil.toJsonStr(user),
                     RedisConstants.getLoginUserTtlWithRandomness(),
-                    TimeUnit.SECONDS
+                    TimeUnit.MINUTES
             );
 
             return token;
