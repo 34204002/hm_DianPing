@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import com.hmdp.dto.Result;
 import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.VoucherOrder;
 import com.hmdp.mapper.VoucherOrderMapper;
@@ -36,45 +37,45 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private ILock ilock;
 
     @Override
-    public Long seckillVoucher(Long voucherId) {
+    public Result seckillVoucher(Long voucherId) {
         //1.查询优惠券
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
         //2.判断秒杀是否开始
         if (voucher.getBeginTime().isAfter(LocalDateTime.now())) {
-            return null;
+            return Result.fail("秒杀尚未开始");
         }
         //3.判断秒杀是否结束
         if (voucher.getEndTime().isBefore(LocalDateTime.now())) {
-            return null;
+            return Result.fail("秒杀已结束");
         }
         //4.判断库存是否充足
         if (voucher.getStock() < 1) {
-            return null;
+            return Result.fail("库存不足");
         }
         //7.返回订单id
-        Long orderId;
+        Result result;
         if(!ilock.tryLock(RedisConstants.LOCK_ORDER_USER_KEY+UserHolder.getUser().getId(), RedisConstants.LOCK_ORDER_USER_TTL, TimeUnit.SECONDS)) {
-            return null;
+            return Result.fail("请勿重复下单");
         }
         try{
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            orderId = proxy.createVoucherOrder(voucherId);
+            result = proxy.createVoucherOrder(voucherId);
         }catch (Exception e) {
-            return null;
+            return Result.fail(e.getMessage());
         }
         finally {
             ilock.unlock(RedisConstants.LOCK_ORDER_USER_KEY+UserHolder.getUser().getId());
         }
-        return orderId;
+        return result;
 
     }
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long createVoucherOrder(Long voucherId) {
+    public Result createVoucherOrder(Long voucherId) {
         //一人一单
         Long userId = UserHolder.getUser().getId();
         if (query().eq("user_id", userId).eq("voucher_id", voucherId).count() > 0) {
-            return null;
+            return Result.fail("一个人只能购买一张");
         }
         //5.扣减库存
         boolean success = seckillVoucherService.update()
@@ -94,6 +95,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         //6.3 优惠券id
         voucherOrder.setVoucherId(voucherId);
         save(voucherOrder);
-        return orderId;
+        return Result.ok(orderId);
     }
 }

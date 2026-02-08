@@ -47,7 +47,7 @@ public class RedisLockUtils implements ILock {
     public boolean tryLock(String key, long timeout, TimeUnit unit) {
         Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(
                 key,
-                UUIDStr+"-"+Thread.currentThread().getName(),
+                UUIDStr+"-"+Thread.currentThread().threadId(),
                 timeout,
                 unit
         );
@@ -72,13 +72,13 @@ public class RedisLockUtils implements ILock {
      */
     @Override
     public void unlock(String key) {
-        stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(key), UUIDStr+"-"+Thread.currentThread().getName());
+        stringRedisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(key), UUIDStr+"-"+Thread.currentThread().threadId());
 
     }
 //    @Override
 //    public void unlock(String key) {
 //        String value = stringRedisTemplate.opsForValue().get(key);
-//        if(value!=null&&value.equals(UUIDStr+"-"+Thread.currentThread().getName())) {
+//        if(value!=null&&value.equals(UUIDStr+"-"+Thread.currentThread().threadId())) {
 //            stringRedisTemplate.delete(key);
 //        }
 //

@@ -30,9 +30,6 @@ public class VoucherOrderController {
      */
     @PostMapping("seckill/{id}")
     public Result seckillVoucher(@PathVariable("id") Long voucherId) {
-        Long orderId =voucherOrderService.seckillVoucher(voucherId);
-        if (orderId != null)
-            return Result.ok(orderId);
-        return Result.fail("购买异常");
+        return voucherOrderService.seckillVoucher(voucherId);
     }
 }
