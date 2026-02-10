@@ -38,12 +38,14 @@ spring:
     virtual-host: /
     listener:
       simple:
-        acknowledge-mode: auto  # 自动确认模式
+        acknowledge-mode: auto   # 自动确认模式
         concurrency: 3
         max-concurrency: 8
         prefetch: 1
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
+
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
