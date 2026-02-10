@@ -12,6 +12,9 @@ public class RabbitMQConfig {
     // 订单处理队列
     public static final String VOUCHER_ORDER_QUEUE = "voucher.order.queue";
     
+    /**
+     * 简单的订单处理队列
+     */
     @Bean
     public Queue voucherOrderQueue() {
         return new Queue(VOUCHER_ORDER_QUEUE, true); // durable=true 持久化队列

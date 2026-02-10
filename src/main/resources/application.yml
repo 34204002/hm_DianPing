@@ -38,9 +38,10 @@ spring:
     virtual-host: /
     listener:
       simple:
-        acknowledge-mode: manual  # 手动确认
-        concurrency: 5           # 最小并发消费者数
-        max-concurrency: 10      # 最大并发消费者数
+        acknowledge-mode: auto   # 自动确认模式
+        concurrency: 3           # 最小并发消费者数
+        max-concurrency: 8       # 最大并发消费者数
+        prefetch: 1             # 每个消费者预取消息数
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
 mybatis-plus:

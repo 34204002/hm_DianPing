@@ -11,6 +11,7 @@ import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,6 +35,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
  * @since 2021-12-22
  */
 @Service
+@Slf4j
 @EnableAsync
 public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
     @Autowired
@@ -56,30 +58,48 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         SECKILL_SCRIPT.setScriptSource(new ResourceScriptSource(new ClassPathResource("lua/sekill.lua")));
         SECKILL_SCRIPT.setResultType(Long.class);
     }
-    
-    @PostConstruct
-    public void init() {
-        // RabbitMQ 方式不需要初始化线程池和处理线程
-        // 消费者通过 @RabbitListener 注解自动监听队列
-    }
+
     
     /**
      * RabbitMQ 消费者 - 处理订单
+     * 自动确认模式下，消息处理完自动确认
      */
     @RabbitListener(queues = ORDER_QUEUE)
     public void handleVoucherOrder(VoucherOrder order) {
         try {
+            log.info("开始处理订单: orderId={}, voucherId={}", order.getId(), order.getVoucherId());
+            
             // 保存订单到数据库
             save(order);
+            log.info("订单保存成功: orderId={}", order.getId());
+            
             // 更新数据库中的库存字段
-            seckillVoucherService.update()
+            boolean updateSuccess = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
                 .eq("voucher_id", order.getVoucherId())
                 .update();
+            
+            if (updateSuccess) {
+                log.info("库存更新成功: voucherId={}, 剩余库存={}", 
+                    order.getVoucherId(), 
+                    getRemainingStock(order.getVoucherId()));
+            } else {
+                log.warn("库存更新可能失败: voucherId={}", order.getVoucherId());
+            }
+            
         } catch (Exception e) {
-            e.printStackTrace();
-            // 可以在这里添加死信队列处理或重试逻辑
+            log.error("处理订单失败: orderId={}, errorMessage={}", order.getId(), e.getMessage(), e);
+            // 在自动确认模式下，异常会导致消息重新入队
+            throw e; // 重新抛出异常让RabbitMQ处理重试
         }
+    }
+    
+    /**
+     * 获取剩余库存（用于日志显示）
+     */
+    private Integer getRemainingStock(Long voucherId) {
+        SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
+        return voucher != null ? voucher.getStock() : 0;
     }
 
     @Override
