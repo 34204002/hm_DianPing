@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Set;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import com.rabbitmq.client.Channel;
 
 /**
  * <p>
@@ -62,10 +63,10 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     
     /**
      * RabbitMQ 消费者 - 处理订单
-     * 自动确认模式下，消息处理完自动确认
+     * 手动确认模式下，需要显式确认消息
      */
     @RabbitListener(queues = ORDER_QUEUE)
-    public void handleVoucherOrder(VoucherOrder order) {
+    public void handleVoucherOrder(VoucherOrder order, Channel channel) {
         try {
             log.info("开始处理订单: orderId={}, voucherId={}", order.getId(), order.getVoucherId());
             
@@ -89,7 +90,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             
         } catch (Exception e) {
             log.error("处理订单失败: orderId={}, errorMessage={}", order.getId(), e.getMessage(), e);
-            // 在自动确认模式下，异常会导致消息重新入队
+            // 在手动确认模式下，不确认消息会让消息重新入队
             throw e; // 重新抛出异常让RabbitMQ处理重试
         }
     }
