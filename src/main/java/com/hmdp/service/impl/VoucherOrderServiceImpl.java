@@ -22,10 +22,8 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 
 /**
  * <p>
@@ -44,15 +42,14 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
     
     // Lua脚本
     private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
     
-    // 异步订单队列
-    private final BlockingQueue<VoucherOrder> orderQueue = new LinkedBlockingQueue<>(1000); // 限制队列大小
-    
-    // 异步处理线程池
-    private ExecutorService executorService;
+    // RabbitMQ 队列名称
+    private static final String ORDER_QUEUE = "voucher.order.queue";
     
     static {
         SECKILL_SCRIPT = new DefaultRedisScript<>();
@@ -62,36 +59,27 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     
     @PostConstruct
     public void init() {
-        // 初始化线程池
-        executorService = Executors.newFixedThreadPool(5);
-        // 启动后台处理线程
-        startOrderProcessingThread();
+        // RabbitMQ 方式不需要初始化线程池和处理线程
+        // 消费者通过 @RabbitListener 注解自动监听队列
     }
     
     /**
-     * 启动订单异步处理线程
+     * RabbitMQ 消费者 - 处理订单
      */
-    private void startOrderProcessingThread() {
-        executorService.submit(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    // 从队列取订单并保存
-                    VoucherOrder order = orderQueue.take();
-                    save(order); // 直接保存到数据库
-                    // 更新数据库中的库存字段
-                    seckillVoucherService.update()
-                        .setSql("stock = stock - 1")
-                        .eq("voucher_id", order.getVoucherId())
-                        .update();
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+    @RabbitListener(queues = ORDER_QUEUE)
+    public void handleVoucherOrder(VoucherOrder order) {
+        try {
+            // 保存订单到数据库
+            save(order);
+            // 更新数据库中的库存字段
+            seckillVoucherService.update()
+                .setSql("stock = stock - 1")
+                .eq("voucher_id", order.getVoucherId())
+                .update();
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 可以在这里添加死信队列处理或重试逻辑
+        }
     }
 
     @Override
@@ -154,10 +142,8 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         voucherOrder.setCreateTime(LocalDateTime.now());
         
         try {
-            // 非阻塞入队
-            if (!orderQueue.offer(voucherOrder)) {
-                return Result.fail("系统繁忙，请稍后重试");
-            }
+            // 发送到 RabbitMQ 队列
+            rabbitTemplate.convertAndSend(ORDER_QUEUE, voucherOrder);
         } catch (Exception e) {
             return Result.fail("下单失败：" + e.getMessage());
         }

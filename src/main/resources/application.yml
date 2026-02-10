@@ -30,6 +30,17 @@ spring:
           test-on-borrow: true
           test-on-return: false
           test-while-idle: true
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: admin
+    password: admin
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual  # 手动确认
+        concurrency: 5           # 最小并发消费者数
+        max-concurrency: 10      # 最大并发消费者数
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
 mybatis-plus:
