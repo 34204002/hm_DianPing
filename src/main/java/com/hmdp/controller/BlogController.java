@@ -92,4 +92,13 @@ public class BlogController {
         log.info("查询博客点赞数:{}",id);
         return blogService.queryBlogLikes(id);
     }
+    @GetMapping("/of/user")
+    public Result queryBlogByUserId(
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam(value = "id") Long id){
+        log.info("查询用户id:{}的博客列表",id);
+        Page<Blog> page = blogService.query().eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+    }
 }

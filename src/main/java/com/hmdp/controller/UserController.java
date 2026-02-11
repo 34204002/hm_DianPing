@@ -3,11 +3,14 @@ package com.hmdp.controller;
 
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
+import com.hmdp.entity.User;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
@@ -117,5 +120,13 @@ public class UserController {
         info.setUpdateTime(null);
         // 返回
         return Result.ok(info);
+    }
+    @GetMapping("/{id}")
+    public Result queryById(@PathVariable("id") Long userId){
+        User user = userService.queryById(userId);
+        if(user == null)
+            return Result.fail("用户不存在");
+        UserDTO userDTO = new UserDTO(user.getId(), user.getNickName(), user.getIcon());
+        return Result.ok(userDTO);
     }
 }

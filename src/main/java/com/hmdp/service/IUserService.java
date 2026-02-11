@@ -21,5 +21,5 @@ public interface IUserService extends IService<User> {
 
     void logout(String token);
 
-    Object queryById(Long id);
+    User queryById(Long id);
 }
