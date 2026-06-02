@@ -101,4 +101,24 @@ public class ShopController {
         // 返回数据
         return Result.ok(page.getRecords());
     }
+
+    /**
+     * 记录店铺UV（独立访客）
+     * @param shopId 店铺ID
+     * @return 操作结果
+     */
+    @PostMapping("/uv/{shopId}")
+    public Result saveShopUv(@PathVariable("shopId") Long shopId) {
+        return shopService.saveShopUv(shopId);
+    }
+
+    /**
+     * 查询店铺UV数量
+     * @param shopId 店铺ID
+     * @return UV数量
+     */
+    @GetMapping("/uv/{shopId}")
+    public Result queryShopUv(@PathVariable("shopId") Long shopId) {
+        return shopService.queryShopUv(shopId);
+    }
 }

@@ -10,6 +10,7 @@ import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.*;
 import org.redisson.api.RBloomFilter;
+import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.GeoResult;
@@ -110,6 +111,21 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             shop.setDistance(distances.get(i).getValue());
         }
         return Result.ok(shops);
+    }
+
+    @Override
+    public Result saveShopUv(Long shopId) {
+        Long userId = UserHolder.getUser().getId();
+        String key = RedisConstants.SHOP_UV_KEY + shopId;
+        stringRedisTemplate.opsForHyperLogLog().add(key, userId.toString());
+        return Result.ok();
+    }
+
+    @Override
+    public Result queryShopUv(Long shopId) {
+        String key = RedisConstants.SHOP_UV_KEY + shopId;
+        Long uv = stringRedisTemplate.opsForHyperLogLog().size(key);
+        return Result.ok(uv);
     }
 
 }
