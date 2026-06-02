@@ -5,24 +5,24 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.SignDTO;
 import com.hmdp.entity.User;
 import com.hmdp.entity.UserInfo;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
-import com.hmdp.utils.BloomFilterManager;
-import com.hmdp.utils.CacheClient;
-import com.hmdp.utils.ILock;
-import com.hmdp.utils.RedisConstants;
-import com.hmdp.utils.RegexUtils;
-import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.*;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,6 +60,55 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 super::getById,
                 bloomFilter
         );
+    }
+
+    @Override
+    public Result sign() {
+        //获取当前登录用户
+        Long userId = UserHolder.getUser().getId();
+        //获取日期
+        LocalDateTime now = LocalDateTime.now();
+        //拼接key
+        String key = RedisConstants.USER_SIGN_KEY + userId + ":" + now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+        //获取今天是本月的第几天
+        int dayOfMonth = now.getDayOfMonth();
+        //写入Redis
+        stringRedisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);
+        return Result.ok();
+    }
+
+    @Override
+    public Result signCount() {
+        //获取本月到今天为止的所有登陆记录
+        String key = RedisConstants.USER_SIGN_KEY + UserHolder.getUser().getId() + ":" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+        int dayOfMonth = LocalDateTime.now().getDayOfMonth();
+        List<Long> result = stringRedisTemplate.opsForValue().bitField(key, BitFieldSubCommands
+                .create()
+                .get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth))
+                .valueAt(0));
+        if(result == null|| result.isEmpty())
+            return Result.ok();
+        Long signCount = result.get(0);
+        int count = 0;//连续签到计数
+        int countSum=0;//总签到计数
+        boolean flag = true;
+        BitSet bitSet = new BitSet(dayOfMonth);//当月签到表
+        for (int i = 0; i < dayOfMonth ; i++){
+
+            long sign=signCount&1;//遍历到对应日期签到情况
+            if (sign==1){
+                if (flag){
+                    count++;
+                }
+                bitSet.set(dayOfMonth- i - 1, true);
+                countSum++;
+            }else {
+                flag = false;
+            }
+            signCount = signCount >>> 1;
+        }
+        return Result.ok(new SignDTO(count,countSum,bitSet));
+
     }
 
     @Override
@@ -177,6 +226,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     /**
      * 生成安全的Session Token
+     *
      * @return 随机生成的token
      */
     private String generateToken() {
@@ -206,8 +256,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private void createUserInfoIfNotExists(Long userId) {
         // 使用MyBatis-Plus的query方法检查用户信息是否存在
         UserInfo existingUserInfo = userInfoService.query()
-            .eq("user_id", userId)
-            .one();
+                .eq("user_id", userId)
+                .one();
 
         if (existingUserInfo == null) {
             // 用户信息不存在，创建一个新的

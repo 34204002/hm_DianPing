@@ -22,4 +22,9 @@ public interface IUserService extends IService<User> {
     void logout(String token);
 
     User queryById(Long id);
+
+    Result sign();
+
+    Result signCount();
+
 }
