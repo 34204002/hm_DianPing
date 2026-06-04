@@ -1,6 +1,5 @@
 package com.hmdp.controller;
 
-
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
@@ -10,20 +9,13 @@ import com.hmdp.service.IUserInfoService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 
 /**
- * <p>
- * 前端控制器
- * </p>
- *
- * @author 虎哥
- * @since 2021-12-22
+ * 用户接口，支持登录注册、签到统计和个人信息查询
  */
 @Slf4j
 @RestController
@@ -36,12 +28,7 @@ public class UserController {
     @Resource
     private IUserInfoService userInfoService;
 
-    /**
-     * 发送手机验证码
-     *
-     * @param phone the phone
-     * @return the result
-     */
+    /** 发送手机验证码 */
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone) {
         log.info("发送验证码：{}", phone);
@@ -54,14 +41,9 @@ public class UserController {
         }
     }
 
-    /**
-     * 登录功能
-     *
-     * @param loginForm 登录参数，包含手机号、验证码；或者手机号、密码
-     * @return the result
-     */
+    /** 用户登录 */
     @PostMapping("/login")
-    public Result login(@RequestBody LoginFormDTO loginForm){
+    public Result login(@RequestBody LoginFormDTO loginForm) {
         log.info("登录：{}", loginForm);
         try {
             String token = userService.login(loginForm);
@@ -72,69 +54,55 @@ public class UserController {
         }
     }
 
-    /**
-     * 用户登出
-     *
-     * @param request HTTP请求对象
-     * @return 操作结果 result
-     */
+    /** 用户登出 */
     @PostMapping("/logout")
-    public Result logout(HttpServletRequest request){
+    public Result logout(HttpServletRequest request) {
         log.info("登出");
-        // 从请求头获取token
         String token = request.getHeader("authorization");
         if (token != null && !token.isEmpty()) {
-            // 调用服务层登出方法，清除Redis中的用户信息
             userService.logout(token);
         }
         return Result.ok("登出成功");
     }
 
-    /**
-     * 用户个人详情
-     *
-     * @return the result
-     */
+    /** 获取当前登录用户信息 */
     @GetMapping("/me")
-    public Result me(){
+    public Result me() {
         log.info("获取当前登录用户:{}", UserHolder.getUser());
         return Result.ok(userService.queryById(UserHolder.getUser().getId()));
-
     }
 
-    /**
-     * 根据用户ID获取用户信息
-     *
-     * @param userId 用户ID
-     * @return 用户详细信息 result
-     */
+    /** 查询用户扩展信息 */
     @GetMapping("/info/{id}")
-    public Result info(@PathVariable("id") Long userId){
-        // 查询详情
+    public Result info(@PathVariable("id") Long userId) {
         UserInfo info = userInfoService.queryUserInfoById(userId);
         if (info == null) {
-            // 没有详情，应该是第一次查看详情
             return Result.ok();
         }
         info.setCreateTime(null);
         info.setUpdateTime(null);
-        // 返回
         return Result.ok(info);
     }
+
+    /** 根据ID查询用户基本信息 */
     @GetMapping("/{id}")
-    public Result queryById(@PathVariable("id") Long userId){
+    public Result queryById(@PathVariable("id") Long userId) {
         User user = userService.queryById(userId);
-        if(user == null)
+        if (user == null)
             return Result.fail("用户不存在");
         UserDTO userDTO = new UserDTO(user.getId(), user.getNickName(), user.getIcon());
         return Result.ok(userDTO);
     }
+
+    /** 每日签到 */
     @PostMapping("/sign")
-    public Result sign(){
+    public Result sign() {
         return userService.sign();
     }
+
+    /** 查询签到统计 */
     @GetMapping("/sign/count")
-    public Result signCount(){
+    public Result signCount() {
         return userService.signCount();
     }
 }
