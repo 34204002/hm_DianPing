@@ -1282,3 +1282,46 @@ CREATE TABLE `tb_voucher_order`  (
 -- ----------------------------
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ----------------------------
+-- Table structure for tb_dau_stats (DAU归档表)
+-- ----------------------------
+DROP TABLE IF EXISTS `tb_dau_stats`;
+CREATE TABLE `tb_dau_stats`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `date` date NOT NULL COMMENT '统计日期',
+  `dau_count` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '日活用户数',
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uniq_date`(`date`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
+
+-- ----------------------------
+-- Table structure for tb_mau_stats (MAU归档表)
+-- ----------------------------
+DROP TABLE IF EXISTS `tb_mau_stats`;
+CREATE TABLE `tb_mau_stats`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `year_month` char(6) NOT NULL COMMENT '统计月份，格式yyyyMM',
+  `mau_count` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT '月活用户数',
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uniq_year_month`(`year_month`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
+
+-- ----------------------------
+-- Table structure for tb_hot_shop_ranking (热门商户月度排行归档表)
+-- ----------------------------
+DROP TABLE IF EXISTS `tb_hot_shop_ranking`;
+CREATE TABLE `tb_hot_shop_ranking`  (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `shop_id` bigint(20) UNSIGNED NOT NULL COMMENT '商户id',
+  `shop_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '商户名称',
+  `year_month` char(6) NOT NULL COMMENT '统计月份，格式yyyyMM',
+  `hot_score` bigint(20) NOT NULL DEFAULT 0 COMMENT '热度分值',
+  `ranking` int(10) UNSIGNED NOT NULL COMMENT '当月排名',
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uniq_shop_month`(`shop_id`, `year_month`) USING BTREE,
+  INDEX `idx_year_month`(`year_month`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
