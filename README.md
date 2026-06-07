@@ -1,33 +1,55 @@
-# DianPing 本地生活点评系统
-基于Spring Boot 3重构开发的高并发本地生活服务平台，对标大众点评核心业务场景，完整实现商户查询、UGC内容生态、秒杀优惠券、好友关注、地理位置查询等核心功能，解决高并发场景下的系统性能与数据一致性问题。
+# 🍜 FoodiePulse 本地生活服务平台
 
-## 技术栈
-后端：Spring Boot 3、MyBatis-Plus、MySQL、Redis、Redisson、RabbitMQ
-核心方向：高并发秒杀、分布式锁、缓存全场景优化、异步解耦、GEO地理位置服务
+基于 Spring Boot 3 的高并发本地生活服务平台，覆盖商户查询、秒杀优惠券、UGC 内容生态、AI 智能搜索、图数据库社交推荐、用户行为分析等核心场景。
 
-## 核心功能&个人二次开发
-1.  高并发秒杀优惠券系统
-    - 基于Redisson分布式锁实现秒杀接口并发控制，解决优惠券超卖、重复领取问题，支持1000+并发下零错误
-    - 基于RabbitMQ实现异步下单削峰填谷，秒杀接口响应时间从300ms优化至50ms，QPS提升430%
-    - 实现一人一单限制，基于Redis+分布式锁双重校验，杜绝违规领取
-2.  Redis缓存全场景深度优化
-    - 基于布隆过滤器+互斥锁解决缓存穿透、缓存击穿问题
-    - 基于过期时间随机化+热点数据永不过期策略，解决缓存雪崩问题
-    - 实现热点商户数据多级缓存预加载，商户查询接口QPS从200提升至1000
-3.  UGC内容与社交功能落地
-    - 实现用户博客发布、点赞、关注、Feed流查询完整社交生态
-    - 基于Redis实现点赞、关注列表高效存储查询，降低数据库IO压力，接口响应速度提升70%
-    - 基于Redis GEO实现附近商户毫秒级查询，支持按距离排序
-4.  工程化与稳定性优化
-    - 统一接口返回格式、全局异常处理，完善核心接口幂等性设计
-    - 基于Angular规范完成全流程Git版本管理，完整的功能迭代与问题修复闭环
+## 🛠 技术栈
 
-## 核心压测数据
-| 接口 | 并发数 | 优化前QPS | 优化后QPS | 平均响应时间 | 错误率 |
-|------|--------|------------|------------|--------------|--------|
-| 商户查询 | 500 |    200    |    1000    |      45ms    |   0%   |
-| 秒杀下单 | 1000|    150    |    800     |      50ms    |   0%   |
+| 分层 | 技术 |
+|------|------|
+| 框架 | Spring Boot 3.5、MyBatis-Plus |
+| 数据库 | MySQL、Redis、Neo4j |
+| 中间件 | Redisson、RabbitMQ |
+| AI | Spring AI + OpenAI Function Calling |
+| 工具 | Hutool、JWT、Lombok |
 
-## 启动&接口文档
-1.  环境要求：JDK 17、MySQL 8.0、Redis 7.0、RabbitMQ 3.x
-2.  克隆项目后修改application.yml中的数据库、Redis、RabbitMQ配置，执行SQL脚本初始化数据库
+## 🚀 核心功能
+
+### ⚡ 高并发秒杀系统
+- 基于 Redisson 分布式锁实现一人一单并发控制，1000+ 并发下零超卖
+- RabbitMQ 异步下单削峰填谷，响应时间 300ms → 50ms，QPS 提升 430%
+- Redisson 令牌桶接口限流，Lua 脚本原子执行，秒杀接口 QPS 1500+
+
+### 🗄 Redis 多级缓存体系
+- 布隆过滤器防穿透 + 互斥锁防击穿 + TTL 随机化防雪崩
+- 商户查询 QPS 200 → 1000，响应 <45ms
+- 基于 GEO 实现附近商户毫秒级检索，HyperLogLog 统计 UV，Bitmap 签到
+
+### 🤖 AI 智能搜索
+- Spring AI + OpenAI 实现自然语言搜索商户
+- Function Calling 自动编排工具调用（getShopTypes / searchShops），结果 Redis 缓存
+- System Prompt 约束 AI 行为，仅基于工具返回数据回答，不编造
+
+### 🧠 Neo4j 图数据库社交推荐
+- User / Shop / Blog 三类节点 + FOLLOWS / WROTE / ABOUT / LIKES 四种关系
+- 实时同步 MySQL 社交行为到 Neo4j，Cypher 图遍历实现推荐
+- 好友去过的店 / 好友赞过的店 / 可能认识的人 三个推荐接口
+
+### 📊 用户行为分析平台
+- AOP 切面零侵入采集浏览 / 点赞 / 发布行为数据
+- Redis Bitmap → DAU / WAU / MAU，ZSet → 热门商户排行，Hash → 用户偏好画像
+- Spring Task 定时归档 MySQL，支持容错回扫，Redis 统一 TTL 管理
+
+### 💬 UGC 内容与社交
+- 博客发布、点赞、评论、关注、Feed 流推送
+- Redis ZSet 实现点赞 Top 5 实时排名、Feed 滚动分页
+- 共同关注基于 Neo4j Cypher 图遍历，一条语句双向查找
+
+## 🏃 快速启动
+
+**环境要求：** JDK 21、MySQL 8.0、Redis 7.0、RabbitMQ 3.x、Neo4j 5.x
+
+1. 克隆项目，修改 `application-dev.yml` 中的数据库 / Redis / RabbitMQ / Neo4j 配置
+2. 执行 `db/hmdp.sql` 初始化 MySQL 表结构
+3. 启动 Neo4j，首次启动后执行 `MATCH (n) DETACH DELETE n` 清空测试数据
+4. 申请 OpenAI API Key（或硅基流动等中转），配置到 `application-dev.yml`
+5. 运行 `HmDianPingApplication`
