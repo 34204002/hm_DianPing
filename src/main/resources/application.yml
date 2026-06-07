@@ -8,13 +8,13 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://127.0.0.1:3306/hmdp?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: jgc20051012
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
-      database: 1
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:1}
       timeout: 5000ms
       connect-timeout: 5000ms
       client:
@@ -31,27 +31,42 @@ spring:
           test-on-return: false
           test-while-idle: true
   rabbitmq:
-    host: 127.0.0.1
-    port: 5672
-    username: guest
-    password: guest
-    virtual-host: /
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
     listener:
       simple:
-        acknowledge-mode: auto   # 自动确认模式
+        acknowledge-mode: auto
         concurrency: 3
         max-concurrency: 8
         prefetch: 1
   jackson:
-    default-property-inclusion: non_null # JSON处理时忽略非空字段
-
+    default-property-inclusion: non_null
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:}
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-3.5-turbo}
+          temperature: 0.1
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-  type-aliases-package: com.hmdp.entity # 别名扫描包
+  type-aliases-package: com.hmdp.entity
   mapper-locations: classpath:/mapper/*.xml
   type-handlers-package: com.hmdp.handler
+
 logging:
   level:
     com.hmdp: debug
+    org.neo4j.driver: info
+    org.springframework.data.neo4j: info

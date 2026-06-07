@@ -38,6 +38,22 @@ public class RedisConstants {
     public static final String SHOP_GEO_KEY = "shop:geo:";
     public static final String USER_SIGN_KEY = "sign:";
     public static final String SHOP_UV_KEY = "uv:shop:";
+    public static final String NEO4J_RECOMMEND_FRIENDS_VISITED = "neo4j:recommend:friends:visited:";
+    public static final String NEO4J_RECOMMEND_FRIENDS_LIKED = "neo4j:recommend:friends:liked:";
+    public static final String NEO4J_RECOMMEND_MIGHT_KNOW = "neo4j:recommend:mightknow:";
+    public static final String AI_SEARCH_KEY = "ai:search:";
+    public static final String DAU_KEY = "dau:";
+    public static final Long DAU_KEY_TTL_DAYS = 90L;
+    public static final String WAU_KEY = "wau:";
+    public static final Long WAU_KEY_TTL_DAYS = 120L;
+    public static final String MAU_KEY = "mau:";
+    public static final Long MAU_KEY_TTL_DAYS = 365L;
+    public static final String HOT_SHOP_KEY = "hot:shop:";
+    public static final Long HOT_SHOP_KEY_TTL_DAYS = 180L;
+    public static final String USER_BEHAVIOR_KEY = "user:behavior:";
+    public static final Long USER_BEHAVIOR_KEY_TTL_DAYS = 730L;
+    public static final String USER_BEHAVIOR_ALL_KEY = "user:behavior:all:";
+    public static final String RATE_LIMIT_KEY = "rate:limit:";
 
 
     private static final Random random = new Random();

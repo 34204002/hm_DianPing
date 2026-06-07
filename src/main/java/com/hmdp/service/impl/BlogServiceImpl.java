@@ -12,6 +12,7 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.INeo4jSyncService;
 import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RedisConstants;
@@ -46,6 +47,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IFollowService followService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private INeo4jSyncService neo4jSyncService;
 
     @Override
     public Result queryBlogById(Long id) {
@@ -100,8 +103,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Long userId = UserHolder.getUser().getId();
         // 判断当前用户是否已经点赞
         String key=RedisConstants.BLOG_LIKED_KEY+id;
+        boolean wasLiked = isLike(id);
         // 如果未点赞
-        if(!isLike(id)) {
+        if(!wasLiked) {
             // 点赞数 + 1
             update().setSql("liked = liked + 1").eq("id", id).update();
             // 保存用户点赞信息到redis的zset集合
@@ -113,6 +117,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             update().setSql("liked = liked - 1").eq("id", id).update();
             // 从redis的set集合中移除当前用户
             stringRedisTemplate.opsForZSet().remove(key, String.valueOf(userId));
+        }
+        // 同步点赞关系到Neo4j
+        Blog blog = getById(id);
+        if (blog != null && blog.getShopId() != null) {
+            neo4jSyncService.syncBlogLike(userId, blog.getShopId(), !wasLiked);
         }
         return Result.ok();
     }
@@ -145,6 +154,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         boolean isSuccess = save(blog);
         if (!isSuccess)
             return Result.fail("发布失败");
+        // 同步博客发布关系到Neo4j
+        neo4jSyncService.syncBlogWrite(user.getId(), blog.getId(), blog.getShopId());
         // 查询笔记作者粉丝
         List<Long> fansIds = followService.query().eq("follow_user_id", user.getId()).list()
                 .stream()

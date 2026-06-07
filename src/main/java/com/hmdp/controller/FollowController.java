@@ -39,4 +39,11 @@ public class FollowController {
         log.info("查询用户{}和用户{}的共同关注", UserHolder.getUser().getId(), id);
         return followService.common(id);
     }
+
+    /** 从MySQL重建用户的Redis关注缓存，用于修复数据不一致 */
+    @PostMapping("/rebuild-cache/{id}")
+    public Result rebuildCache(@PathVariable("id") Long id) {
+        followService.rebuildFollowCache(id);
+        return Result.ok("关注缓存重建完成");
+    }
 }

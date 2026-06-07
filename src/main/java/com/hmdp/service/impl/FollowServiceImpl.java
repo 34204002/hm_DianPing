@@ -9,14 +9,16 @@ import com.hmdp.mapper.FollowMapper;
 import com.hmdp.service.IFollowService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IUserService;
+import com.hmdp.repository.Neo4jCypherRepository;
+import com.hmdp.service.INeo4jSyncService;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * <p>
@@ -33,13 +35,17 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     private StringRedisTemplate stringRedisTemplate;
     @Autowired
     private IUserService userService;
+    @Autowired
+    private INeo4jSyncService neo4jSyncService;
+    @Autowired
+    private Neo4jCypherRepository neo4jCypherRepository;
     @Override
     public void follow(Long followUserId, Boolean isFollow) {
         Follow follow = new Follow();
         follow.setUserId(UserHolder.getUser().getId());
         follow.setFollowUserId(followUserId);
         //如果未关注,则添加关注
-        if(BooleanUtil.isTrue(isFollow)){
+        if(BooleanUtil.isFalse(isFollow)){
             boolean isSuccess=save(follow);
             if (isSuccess){
                 stringRedisTemplate.opsForSet().add("follow:" + UserHolder.getUser().getId(), String.valueOf(followUserId));
@@ -52,6 +58,8 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 stringRedisTemplate.opsForSet().remove("follow:" + UserHolder.getUser().getId(), String.valueOf(followUserId));
             }
         }
+        // 同步关注关系到Neo4j，取反是将API的"当前状态"转为"本次操作"
+        neo4jSyncService.syncFollow(follow.getUserId(), followUserId, !isFollow);
     }
 
     @Override
@@ -63,14 +71,28 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
     @Override
     public Result common(Long id) {
-        Set<String> intersect = stringRedisTemplate.opsForSet().intersect("follow:" + id, "follow:" + UserHolder.getUser().getId());
-        if (intersect==null||intersect.isEmpty())
-            return Result.ok();
-        List<Long> list=intersect.stream().map(Long::valueOf).toList();
-        List<UserDTO> list1 = userService.listByIds(list)
+        Long currentUserId = UserHolder.getUser().getId();
+        List<Long> commonIds = neo4jCypherRepository.findCommonFollows(currentUserId, id);
+        if (commonIds.isEmpty())
+            return Result.ok(Collections.emptyList());
+        List<UserDTO> commonUsers = userService.listByIds(commonIds)
                 .stream()
                 .map(user -> new UserDTO(user.getId(), user.getNickName(), user.getIcon()))
                 .toList();
-        return Result.ok(list1);
+        return Result.ok(commonUsers);
+    }
+
+    /** 从MySQL重建当前用户的Redis关注Set，用于修复不一致 */
+    public void rebuildFollowCache(Long userId) {
+        List<Follow> follows = query().eq("user_id", userId).list();
+        String key = "follow:" + userId;
+        stringRedisTemplate.delete(key);
+        if (!follows.isEmpty()) {
+            String[] ids = follows.stream()
+                    .map(f -> String.valueOf(f.getFollowUserId()))
+                    .toArray(String[]::new);
+            stringRedisTemplate.opsForSet().add(key, ids);
+        }
+        log.info("Redis关注缓存重建完成: userId={}, count={}", userId, follows.size());
     }
 }
